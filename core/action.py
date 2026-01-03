@@ -1,12 +1,33 @@
 # action.py
 import pyautogui
 import time
+from pathlib import Path
 from .config import CLICK_DELAY, ACTION_WAIT, BTN_OFFSET_X, BTN_OFFSET_Y, BTN_GAP, MOUSE_PAUSE_TIME
 pyautogui.PAUSE = MOUSE_PAUSE_TIME
+from . import vision
 
 
 # 🖱️ 第三部分：自動操作 (相對座標版)
 # ==========================================
+
+def click_position(image_path: Path):
+    """
+    通用的點擊函數
+    position: 可以是 pyautogui.Point 物件 或 tuple (x, y)
+    """
+
+    location = vision.find_image_center(image_path)
+    if location:
+        x, y = location
+        print(f"🖱️ 點擊座標: {x}, {y}")
+        pyautogui.click(x, y)
+        time.sleep(0.5) # 點擊後的緩衝，避免操作過快
+        return True
+    else:
+        print("⚠️ 無法點擊：座標為 None")
+        return False
+
+
 def fill_result_relative(original_board, solved_board, region_info):
     print("✍️ 開始填入答案 (相對座標模式)...")
     print("🛑 緊急停止：滑鼠甩至左上角")

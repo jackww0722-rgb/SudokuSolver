@@ -25,7 +25,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 TEMPLATE_FOLDER = BASE_DIR / "templates"
 ANCHOR_IMAGE = TEMPLATE_FOLDER / "anchor.png"
 SCREENSHOT_FOLDER = BASE_DIR / "Screenshots"
+START_BUTTON_IMAGE = TEMPLATE_FOLDER / "start_btn.png"
+normal_fiff_image = TEMPLATE_FOLDER / "normal_diff.png"
+clear_image = TEMPLATE_FOLDER / "clear.png"
 
+# 遊戲編號
+package_name = "com.linecorp.LGSNPTW"
+# 裝置編號
+device_serial = "R5CW915J6XV"
 
 # 1. 棋盤參數 (之前測過的)
 ESTIMATED_BOARD_WIDTH = 400     
@@ -35,7 +42,7 @@ OFFSET_Y = 36
 
 # 2. 識別參數
 CROP_RADIUS = 15                 
-CONFIDENCE_THRESHOLD = 0.80      
+CONFIDENCE_THRESHOLD = 0.60      
 ANCHOR_CONFIDENCE = 0.8          
 
 # 3. 🎛️ 按鈕參數 (請填入剛剛在 debug_buttons.py 測出的數值)

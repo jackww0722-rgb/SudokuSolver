@@ -1,6 +1,7 @@
 # bot.py
 import copy
 from . import vision, solver, action  # 都在 core 裡，網內互打
+from .app_controller import AppController
 
 def run_one_round():
     board_numbers, region = vision.scan_board()
@@ -13,6 +14,13 @@ def run_one_round():
             
             # 使用新的相對座標填寫函式
             action.fill_result_relative(original_board, board_numbers, region)
+
+            vision.save_screenshot()
+
+
+            app = AppController()
+            app.restart_app()
+
 
 
         else:

@@ -3,8 +3,10 @@ import cv2
 import os
 import pyautogui
 import numpy as np
+import time
 from . import config
-
+from pathlib import Path
+_TEMPLATE_CACHE = {}
 
 # Grand Order
 def scan_board():
@@ -32,6 +34,34 @@ def scan_board():
 
 # 👁️ 視覺識別
 # ==========================================
+
+def _get_template_image(image_path: Path):
+    """
+    (內部函數) 讀取圖片並快取。
+    如果記憶體有了，就直接給；沒有才去硬碟讀。
+    """
+    path_str = str(image_path)
+    
+    # 檢查快取
+    if path_str in _TEMPLATE_CACHE:
+        return _TEMPLATE_CACHE[path_str]
+    
+    # 讀取圖片
+    if not image_path.exists():
+        print(f"❌ 錯誤：找不到圖片 {image_path}")
+        return None
+        
+    img = cv2.imread(path_str, 0) # 灰階讀取
+    if img is None:
+        print(f"❌ 錯誤：無法讀取圖片格式 {image_path}")
+        return None
+        
+    # 存入快取
+    _TEMPLATE_CACHE[path_str] = img
+    return img
+
+
+
 def load_templates():
     templates = {}
     print(f"📂 正在載入數字範本...")
@@ -46,6 +76,56 @@ def load_templates():
             path_v = os.path.join(config.TEMPLATE_FOLDER, f'{i}_v{v}.png')
             if os.path.exists(path_v): templates[i].append(cv2.imread(path_v, 0))
     return templates
+
+def find_image_center(image_path: Path, confidence=config.CONFIDENCE_THRESHOLD):
+    """
+    使用 OpenCV 進行螢幕圖形匹配 (灰階模式)
+    
+    Args:
+        image_path (Path): 模板圖片路徑
+        confidence (float): 相似度閾值 (0.0 ~ 1.0)
+    
+    Returns:
+        tuple (x, y) 中心點座標 或 None
+    """
+    # 改用快取讀取函數，不再每次都 cv2.imread
+    template = _get_template_image(image_path)
+    if template is None: return None
+    if template is None:
+        print(f"❌ 錯誤：無法讀取圖片格式 {image_path}")
+        return None
+
+    template_h, template_w = template.shape[:2]
+
+    # 2. 螢幕截圖 (Screenshot)
+    # pyautogui 截圖預設是 RGB 格式
+    screenshot = pyautogui.screenshot()
+    screenshot_np = np.array(screenshot)
+    
+    # 3. 轉為灰階 (Convert to Grayscale)
+    # OpenCV 處理顏色通常是 BGR，但 pyautogui 轉 numpy 是 RGB
+    # 為了比對，我們統一轉成灰階即可，比較簡單且快速
+    screen_gray = cv2.cvtColor(screenshot_np, cv2.COLOR_RGB2GRAY)
+
+    # 4. 進行模板匹配 (Template Matching)
+    result = cv2.matchTemplate(screen_gray, template, cv2.TM_CCOEFF_NORMED)
+    
+    # 5. 取得最佳匹配位置
+    min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
+
+    # 6. 判斷是否符合信心度
+    if max_val >= confidence:
+        top_left_x, top_left_y = max_loc
+        
+        # 計算中心點
+        center_x = top_left_x + (template_w // 2)
+        center_y = top_left_y + (template_h // 2)
+        
+        # print(f"✅ 找到目標 (信心度: {max_val:.2f})")
+        return (center_x, center_y)
+    
+    return None
+
 
 def get_board_position():
     print("🔍 正在尋找數獨錨點...")
@@ -104,6 +184,34 @@ def recognize_board(region_info, templates):
     for r in detected_board: print(r)
 
     return detected_board
+
+
+def wait_for_image(target_img, timeout=30):
+    time.sleep(1.0)
+    """
+    [工具] 單純等待某張圖片出現 (不做任何點擊)
+    :param timeout: 最多等幾秒，預設 10 秒
+    :return: True (有等到) / False (超時沒等到)
+    """
+    _get_template_image(target_img)
+
+    print(f"   ⏳ [Ops] 等待圖片出現: {target_img} ...")
+
+    start_time = time.time()
+    
+    while time.time() - start_time < timeout:
+        
+        # 截圖並找圖
+
+        
+        if find_image_center(target_img):
+            print(f"   ✅ 看到 {target_img} 了！")
+            return True
+        
+        
+    print(f"   ⚠️ 等待 {target_img} 超時 ({timeout}s)")
+    return False
+
 
 # 截圖
 # ===========================================
