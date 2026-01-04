@@ -26,7 +26,7 @@ TEMPLATE_FOLDER = BASE_DIR / "templates"
 ANCHOR_IMAGE = TEMPLATE_FOLDER / "anchor.png"
 SCREENSHOT_FOLDER = BASE_DIR / "Screenshots"
 START_BUTTON_IMAGE = TEMPLATE_FOLDER / "start_btn.png"
-normal_fiff_image = TEMPLATE_FOLDER / "normal_diff.png"
+normal_diff_image = TEMPLATE_FOLDER / "normal_diff.png"
 clear_image = TEMPLATE_FOLDER / "clear.png"
 
 # 遊戲編號

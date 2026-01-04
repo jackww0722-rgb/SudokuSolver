@@ -1,9 +1,10 @@
 # bot.py
 import copy
-from . import vision, solver, action  # 都在 core 裡，網內互打
+import time
+from . import vision, solver, action, config  # 都在 core 裡，網內互打
 from .app_controller import AppController
 
-def run_one_round():
+def run_n_round(current_round = 1, total_rounds = 1):
     board_numbers, region = vision.scan_board()
         
     if region:
@@ -21,7 +22,13 @@ def run_one_round():
             app = AppController()
             app.restart_app()
 
-
+            if current_round < total_rounds - 1:
+                    vision.wait_for_image(config.START_BUTTON_IMAGE)
+                    time.sleep(3)
+                    action.click_position(config.START_BUTTON_IMAGE)
+                    time.sleep(1)
+                    action.click_position(config.normal_diff_image, confidence=0.8)
+                    time.sleep(3) 
 
         else:
             print("❌ 無解！請檢查識別結果。")
@@ -29,3 +36,6 @@ def run_one_round():
     else:
         print("❌ 無解！請檢查識別結果。")
         return False
+
+    
+    

@@ -9,7 +9,7 @@ class AppController:
     負責 App 的生命週期管理 (啟動、關閉)
     """
     def __init__(self, device_serial: Optional[str] = None):
-        self.device_serial = device_serial
+        self.device_serial = config.device_serial
 
     def _run_adb(self, cmd_args: list) -> None:
         """執行 ADB 指令的底層函式"""
@@ -59,7 +59,7 @@ class AppController:
 
     def restart_app(self):
         self.stop_app()
-        time.sleep(5.0)
+        time.sleep(3.0)
         self.start_app()
 
 # --- 使用範例 ---

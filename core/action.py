@@ -2,7 +2,7 @@
 import pyautogui
 import time
 from pathlib import Path
-from .config import CLICK_DELAY, ACTION_WAIT, BTN_OFFSET_X, BTN_OFFSET_Y, BTN_GAP, MOUSE_PAUSE_TIME
+from .config import CLICK_DELAY, ACTION_WAIT, BTN_OFFSET_X, BTN_OFFSET_Y, BTN_GAP, MOUSE_PAUSE_TIME, CONFIDENCE_THRESHOLD 
 pyautogui.PAUSE = MOUSE_PAUSE_TIME
 from . import vision
 
@@ -10,17 +10,18 @@ from . import vision
 # 🖱️ 第三部分：自動操作 (相對座標版)
 # ==========================================
 
-def click_position(image_path: Path):
+def click_position(image_path: Path, confidence=CONFIDENCE_THRESHOLD ):
     """
     通用的點擊函數
     position: 可以是 pyautogui.Point 物件 或 tuple (x, y)
     """
 
-    location = vision.find_image_center(image_path)
+    location = vision.find_image_center(image_path, confidence=confidence)
     if location:
         x, y = location
         print(f"🖱️ 點擊座標: {x}, {y}")
-        pyautogui.click(x, y)
+        pyautogui.moveTo(x, y, duration=0.2)
+        pyautogui.click()
         time.sleep(0.5) # 點擊後的緩衝，避免操作過快
         return True
     else:
