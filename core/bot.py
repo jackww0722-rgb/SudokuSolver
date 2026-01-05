@@ -19,10 +19,10 @@ def run_n_round(current_round = 1, total_rounds = 1):
             vision.save_screenshot()
 
 
-            app = AppController()
-            app.restart_app()
 
-            if current_round < total_rounds - 1:
+            if current_round < total_rounds - 1:                   
+                    app = AppController()
+                    app.restart_app()
                     vision.wait_for_image(config.START_BUTTON_IMAGE)
                     time.sleep(3)
                     action.click_position(config.START_BUTTON_IMAGE)
