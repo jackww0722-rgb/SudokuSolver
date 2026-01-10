@@ -10,7 +10,7 @@ from pathlib import Path
 pyautogui.FAILSAFE = True 
 CLICK_DELAY = 0        
 ACTION_WAIT = 0
-MOUSE_PAUSE_TIME = 0.05
+MOUSE_PAUSE_TIME = 0.06
 
 # ==========================================
 # ⚙️ 參數設定區 (請填入數值)

@@ -59,7 +59,7 @@ class AppController:
 
     def restart_app(self):
         self.stop_app()
-        time.sleep(3.0)
+        time.sleep(1.0)
         self.start_app()
 
 # --- 使用範例 ---
