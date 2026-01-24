@@ -20,7 +20,7 @@ class SudokuBotGUI:
 
         # 2. 視窗設定
         self.root.title("數獨自動化助手")
-        self.root.geometry("360x320")
+        self.root.geometry("360x360")
         self.root.resizable(False, False)
         
         self.style = ttk.Style()
