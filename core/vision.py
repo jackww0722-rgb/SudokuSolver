@@ -20,9 +20,9 @@ class SudokuVision:
 
         # 如果有傳入路徑，自動載入
         if self.config.TEMPLATE_FOLDER:
-            self.load_templates(self.config.TEMPLATE_FOLDER)
+            self._load_templates(self.config.TEMPLATE_FOLDER)
 
-    def load_templates(self, template_dir: Path):
+    def _load_templates(self, template_dir: Path):
         """
         載入 1~9 的多重模板圖片
         支援檔名格式： "1.png", "1_v2.png", "1_bold.png" 等等
@@ -152,7 +152,7 @@ class SudokuVision:
 
         return grid_result
     
-    def cv2_imread_safe(self, file_path):
+    def _cv2_imread_safe(self, file_path):
         """ 
         [工具] 解決 Windows 路徑含有中文或特殊字元無法讀取的問題 
         這是 find_and_get_pos 需要呼叫的幫手函式
@@ -177,7 +177,7 @@ class SudokuVision:
         template_path = self.config.TEMPLATE_FOLDER/template_name
         
         # 2. 呼叫上面的安全讀取法 (這行原本報錯，因為找不到上面的函式)
-        template = self.cv2_imread_safe(template_path)
+        template = self._cv2_imread_safe(template_path)
         
         # 3. 防呆檢查：圖片讀取失敗
         if template is None:

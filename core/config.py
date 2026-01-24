@@ -15,7 +15,9 @@ class GameConfig:
     adb_config = {
         "ADB_PATH" : Path("D:\\Program Files\\Netease\\MuMuPlayer\\nx_main\\adb.exe"),
         "target_app_package" : "com.linecorp.LGSNPTW",
-        "device_serial" : "R5CW915J6XV"
+        "device_serial" : "R5CW915J6XV",
+        "design_width" : 1080,
+        "design_height" : 2340
     }
 
     # 棋盤參數 (之前測過的)

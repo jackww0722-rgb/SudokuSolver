@@ -25,15 +25,15 @@ class BitwiseSudokuSolver:
                     # 標記：這一列、這一行、這一個宮，都佔用這個數字了
                     self.rows[r] |= mask
                     self.cols[c] |= mask
-                    self.boxes[self.get_box_index(r, c)] |= mask
+                    self.boxes[self._get_box_index(r, c)] |= mask
                 else:
                     self.empty_cells.append((r, c))
 
-    def get_box_index(self, r, c):
+    def _get_box_index(self, r, c):
         # 計算目前格子屬於第幾個九宮格 (0~8)
         return (r // 3) * 3 + (c // 3)
 
-    def solve(self):
+    def _solve(self):
         # 如果沒有空格，代表解完了
         if not self.empty_cells:
             return True
@@ -47,7 +47,7 @@ class BitwiseSudokuSolver:
 
         # 掃描所有剩下的空格
         for i, (r, c) in enumerate(self.empty_cells):
-            box_idx = self.get_box_index(r, c)
+            box_idx = self._get_box_index(r, c)
             
             # 【核心運算】合併佔用狀態
             occupied = self.rows[r] | self.cols[c] | self.boxes[box_idx]
@@ -72,7 +72,7 @@ class BitwiseSudokuSolver:
         # 開始嘗試填入數字
         # ==========================================
         r, c = self.empty_cells.pop(best_index)
-        box_idx = self.get_box_index(r, c)
+        box_idx = self._get_box_index(r, c)
 
         for num in range(1, 10):
             bit = 1 << (num - 1)
@@ -85,7 +85,7 @@ class BitwiseSudokuSolver:
                 self.board[r][c] = num
 
                 # 2. 遞迴
-                if self.solve():
+                if self._solve():
                     return True
 
                 # 3. 回溯 (XOR 清除)
@@ -124,7 +124,7 @@ class SolverBot:
         
         engine = BitwiseSudokuSolver(board_numbers)
         
-        if engine.solve():
+        if engine._solve():
             # engine.solve() 會直接修改 board_numbers 變成答案
             return board_numbers
         else:
