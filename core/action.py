@@ -3,8 +3,11 @@ import time
 from .config import GameConfig
 from .adb_controller import AdbController
 from .vision import SudokuVision
+import threading
 
 
+class StopTaskException(Exception):
+    pass
 
 class AdbActionBot:
     def __init__(self, region_info : dict, btn_info : dict, adb : AdbController, vision : SudokuVision):
@@ -14,7 +17,35 @@ class AdbActionBot:
         self.adb = adb
         self.vision = vision
 
+        # ==========================================
+        # 🚦 新增暫停控制閥 (Event)
+        # ==========================================
+        self.pause_event = threading.Event()
+        self.pause_event.set() # 預設是 Green Light (Set = 通行, Clear = 暫停)
+        self.stop_event = threading.Event()
+        self.stop_event.clear()
+        
+    def wait_if_paused(self):
+        """ 
+        [核心煞車] 所有動作前都會檢查
+        不僅檢查暫停，也檢查是否被按下停止
+        """
+        # A. 如果還沒暫停就按了停止
+        if self.stop_event.is_set():
+            raise StopTaskException("手動停止任務")
 
+        # B. 處理暫停邏輯
+        if not self.pause_event.is_set():
+            print("⏸️ 動作已暫停")
+            
+            # 【關鍵修改】不要用死等的 wait()，改用帶有 timeout 的迴圈
+            # 這樣就算在暫停狀態下按「停止」，程式也能馬上反應並退出
+            while not self.pause_event.is_set():
+                if self.stop_event.is_set():
+                    raise StopTaskException("在暫停狀態下被強制停止")
+                self.pause_event.wait(0.5) # 每 0.5 秒醒來偷看一下有沒有被按停止
+            
+            print("▶️ 動作恢復！")
     # =========================
     # 填寫答案
     # =========================
@@ -28,6 +59,7 @@ class AdbActionBot:
 
         for r in range(9):
             for c in range(9):
+                self.wait_if_paused()
                 if original_board[r][c] != 0:
                     continue
 

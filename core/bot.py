@@ -3,6 +3,7 @@ import copy
 import time
 import sys
 from pathlib import Path
+import threading
 
 
 root_path = str(Path(__file__).parent.parent)
@@ -54,7 +55,35 @@ class SudokuBot(AdbActionBot):
 
         return False # 通過檢查
 
+    def _recover_app_state(self):
+        """
+        [異常恢復] 核彈級重置：殺掉 App -> 重開 -> 點擊開始遊戲
+        """
+        print("\n🚨 觸發異常恢復機制！正在重啟應用程式...")
+        
+        self.adb.restart_app()
+        self.wait_if_paused()
+        print("⏳ 等待 App 重新載入...")
+        time.sleep(7)
+
+        # [關鍵] 點擊「新遊戲」按鈕
+        # 重啟後通常會在大廳，你必須點一下才能進入棋盤
+        # 請確認 config 裡面有這顆按鈕的座標
+        self.click_target("start_btn.png", wait_time=3)
+        time.sleep(1)
+        self.wait_if_paused()
+        self.click_target("error_new_game.png", threshold=0.5)
+        time.sleep(1)
+        self.wait_if_paused()
+        self.click_target("normal_diff.png")
+        time.sleep(2)
+        self.wait_if_paused()
+        print("✅ 恢復完成，準備進行下一局！")
+        return True
+    
     def run_one_round(self):
+
+        self.wait_if_paused()
         """ 執行一回合：掃描 -> 計算 -> 填寫 """
         print("\n" + "="*30)
         print("👀 階段一：掃描盤面")
@@ -98,11 +127,14 @@ class SudokuBot(AdbActionBot):
         """ [內部] 重置遊戲狀態 (例如重啟 App 以跳過廣告) """
         print("🔄 準備進行下一局，重啟 App 以跳過廣告...")
         self.adb.restart_app()
-        time.sleep(5) # 等待重啟
+        time.sleep(7) # 等待重啟
+        self.wait_if_paused()
         self.click_target("start_btn.png", wait_time=3)
         time.sleep(1)
+        self.wait_if_paused()
         self.click_target("normal_diff.png")
         time.sleep(2)
+        self.wait_if_paused()
 
     def run_round_with_retry(self, current_round=0, total_rounds=0):
         # 1. 改用 for 迴圈，自動處理次數 (0, 1, 2, 3)
@@ -112,8 +144,9 @@ class SudokuBot(AdbActionBot):
             # 2. 等待過關畫面 (直接把等待邏輯寫清楚，或封裝成 wait_for_image)
             start_time = time.time()
             while time.time() - start_time < 15:
+                self.wait_if_paused()
                 screen = self.adb.get_screenshot()
-                
+                print("等待結束畫面")
                 # 只要檢查這一次就好
                 if self.vision.find_and_get_pos(screen, "clear.png"):
                     
@@ -127,7 +160,16 @@ class SudokuBot(AdbActionBot):
             
             print(f"⚠️ 第 {attempt + 1} 次嘗試失敗，重試中...")
 
-        raise Exception
+        # ==========================================
+        # 🚨 4次都失敗了 -> 執行異常恢復
+        # ==========================================
+        print("❌ 多次嘗試失敗，判斷為環境異常。")
+        
+        # 執行核彈重啟
+        self._recover_app_state()
+
+        # 回傳 False，告訴 main.py 這一局沒救了，請直接算失敗或跳下一局
+        return False
     
 if __name__ == "__main__":
     bot = SudokuBot()
