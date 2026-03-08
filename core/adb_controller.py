@@ -18,13 +18,25 @@ class AdbController:
             adb.adb_path = self.adb_config["ADB_PATH"]
 
         print(f"🔗 正在連線至裝置: {self.adb_config["device_serial"]} ...")
-        try:
-            self.device = adb.device(serial=self.adb_config["device_serial"])
-            print(f"✅ 連線成功: {self.device.prop.name} (Serial: {self.device.serial})")
-        except Exception as e:
-            print(f"❌ 連線失敗，請檢查序號或 ADB 伺服器: {e}")
-            raise e
-        
+
+        if not self.adb_config["device_serial"]:
+            print("🔍 未指定序號，正在自動搜尋裝置...")
+            devices = adb.device_list() # 抓取目前所有連線的裝置 # type: ignore
+            
+            if not devices:
+                raise RuntimeError("未偵測到任何 ADB 裝置！請確認模擬器已開啟。")
+            
+            # 直接抓第一台
+            self.device = devices[0]
+            print(f"✅ 自動鎖定裝置: {self.device.serial}")
+        else:
+            try:
+                self.device = adb.device(serial=self.adb_config["device_serial"])
+                print(f"✅ 連線成功: {self.device.prop.name} (Serial: {self.device.serial})")
+            except Exception as e:
+                print(f"❌ 連線失敗，請檢查序號或 ADB 伺服器: {e}")
+                raise e
+            
          # 1. 取得真實解析度
         self.real_w, self.real_h = self._get_device_resolution()
         

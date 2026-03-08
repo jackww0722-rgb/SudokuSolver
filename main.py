@@ -155,8 +155,8 @@ class SudokuBotGUI:
         if not self.bot: return
         
         # 1. 鎖住按鈕，避免連點
-        self.btn_stop.config(state="disabled")
-        self.btn_pause.config(state="disabled")
+        self.btn_stop.state(["disabled"])
+        self.btn_pause.state(["disabled"])
         self.label_status.config(text="🛑 正在停止中，請稍候...", foreground="red")
         
         # 2. 觸發停止訊號
@@ -190,8 +190,12 @@ class SudokuBotGUI:
         # ==========================================
         self.bot.stop_event.clear()  # 取消停止狀態
         self.bot.pause_event.set() # 確保一定是綠燈開始
-        self.btn_pause.config(text="⏸️ 暫停", state="!disabled") # 啟用按鈕
-        self.btn_stop.config(state="!disabled")
+        # 暫停按鈕：改文字用 config，改狀態用 state
+        self.btn_pause.config(text="⏸️ 暫停") 
+        self.btn_pause.state(["!disabled"])
+        
+        # 停止按鈕：解鎖
+        self.btn_stop.state(["!disabled"])
         
         threading.Thread(target=self.run_logic, args=(count,), daemon=True).start()
 
@@ -261,13 +265,16 @@ class SudokuBotGUI:
         
         finally:
             self.reset_ui_state()
-            self.btn_pause.config(text="暫停", state="disabled")
 
     def reset_ui_state(self):
         self.is_running = False
         try:
             self.btn_run_10.state(["!disabled"])
             self.btn_run_custom.state(["!disabled"])
+            self.btn_pause.config(text="暫停")
+            self.btn_pause.state(["disabled"])
+            self.btn_stop.state(["disabled"])
+
             if self.btn_reconnect.winfo_ismapped(): # 如果重連按鈕有顯示，也要啟用
                  self.btn_reconnect.state(["!disabled"])
         except:

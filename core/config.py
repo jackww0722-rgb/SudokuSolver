@@ -27,9 +27,9 @@ class GameConfig:
     # ==========================
     adb_config = {
         # 如果使用者沒設，就留空 (讓系統自己找)
-        "ADB_PATH": "", 
+        "ADB_PATH": str(BASE_DIR / "adb_tools" /  "adb.exe"), 
         "target_app_package": "com.linecorp.LGSNPTW",
-        # 預設序號 (這可以隨便寫，反正會優先讀 ini)
+        # 預設序號 (預設留空，反正會優先讀 ini)
         "device_serial": "", 
         "design_width": 1080,
         "design_height": 2340
