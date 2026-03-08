@@ -1,58 +1,103 @@
-# config.py
-import pyautogui
+import sys
+import configparser
 from pathlib import Path
+from dataclasses import dataclass
+
+# 1. 取得執行檔所在路徑 (打包 exe 必備)
+def get_base_path():
+    if getattr(sys, 'frozen', False):
+        # 如果是打包後的 exe，回傳 exe 所在的資料夾
+        return Path(sys.executable).parent
+    else:
+        # 如果是開發模式 (py)，回傳專案根目錄 (根據你的檔案結構調整)
+        return Path(__file__).resolve().parent.parent
+
+@dataclass
+class GameConfig:
+    # ==========================
+    # 📁 路徑與基礎設定
+    # ==========================
+    BASE_DIR = get_base_path()
+    TEMPLATE_FOLDER = BASE_DIR / "templates"
+    INI_PATH = BASE_DIR / "settings.ini"  # 外部設定檔路徑
+
+    # ==========================
+    # 📱 ADB 與 裝置設定 (預設值)
+    # 這些值會被 settings.ini 覆寫
+    # ==========================
+    adb_config = {
+        # 如果使用者沒設，就留空 (讓系統自己找)
+        "ADB_PATH": str(BASE_DIR / "adb_tools" /  "adb.exe"), 
+        "target_app_package": "com.linecorp.LGSNPTW",
+        # 預設序號 (預設留空，反正會優先讀 ini)
+        "device_serial": "", 
+        "design_width": 1080,
+        "design_height": 2340
+    }
+
+    # ==========================
+    # 🎮 遊戲內參數 (通常不需變動)
+    # ==========================
+    
+    # 棋盤參數
+    region_info = {
+        'left': 35,  
+        'top': 505,
+        'cell_w': 1011 // 9,
+        'cell_h': 1011 // 9
+    }
+
+    # 識別參數
+    vision_info = {
+        "CROP_RADIUS": 35,                 
+        "CONFIDENCE_THRESHOLD": 0.80,      
+        "ANCHOR_CONFIDENCE": 0.3
+    }   
+
+    # 按鈕座標 (Offset)
+    btn_info = {
+        "BTN_OFFSET_X": 49,
+        "BTN_OFFSET_Y": 1516,  
+        "BTN_GAP": 114,        
+    }
+
+    DEBUG_MODE = False
+    
+    # ==========================
+    # ⚙️ 動態載入邏輯
+    # ==========================
+    @classmethod
+    def load_settings(cls):
+        """ 嘗試讀取 settings.ini 並更新 adb_config """
+        if not cls.INI_PATH.exists():
+            print(f"⚠️ 找不到設定檔 {cls.INI_PATH}，將使用程式碼內的預設值。")
+            return
+
+        print(f"📄 發現設定檔，正在載入: {cls.INI_PATH}")
+        config = configparser.ConfigParser()
+        # 設定讀取編碼，避免中文路徑亂碼
+        config.read(cls.INI_PATH, encoding='utf-8')
+
+        # 如果 ini 裡面有 [ADB] 區塊，就更新字典
+        if 'ADB' in config:
+            adb_section = config['ADB']
+            
+            # 使用 get 更新，如果 ini 沒寫該欄位就維持原樣
+            # 注意：INI 讀出來都是字串
+            if adb_section.get('adb_path'):
+                cls.adb_config['ADB_PATH'] = adb_section.get('adb_path')
+            
+            if adb_section.get('device_serial'):
+                cls.adb_config['device_serial'] = adb_section.get('device_serial')
+
+        if 'GAME' in config:
+            cls.DEBUG_MODE = config.getboolean('Game', 'debug_mode', fallback=False)
+            if cls.DEBUG_MODE:
+                print(f"🔧 除錯模式開啟")
 
 
 
-# ==========================================
-# 🛑 安全與速度設定
-# ==========================================
-pyautogui.FAILSAFE = True 
-CLICK_DELAY = 0        
-ACTION_WAIT = 0
-MOUSE_PAUSE_TIME = 0.06
+        print(f"✅ 設定載入完成 (裝置: {cls.adb_config['device_serial']})")
 
-# ==========================================
-# ⚙️ 參數設定區 (請填入數值)
-# ==========================================
-# 取得當前檔案的路徑，並解析成絕對路徑
-# .parent = 上一層 (core)
-# .parent.parent = 上兩層 (專案根目錄)
-BASE_DIR = Path(__file__).resolve().parent.parent
-
-# 拼路徑不用再寫 os.path.join 了！
-# 直接用「除號 /」就可以把路徑接起來，超直覺
-TEMPLATE_FOLDER = BASE_DIR / "templates"
-ANCHOR_IMAGE = TEMPLATE_FOLDER / "anchor.png"
-SCREENSHOT_FOLDER = BASE_DIR / "Screenshots"
-START_BUTTON_IMAGE = TEMPLATE_FOLDER / "start_btn.png"
-normal_diff_image = TEMPLATE_FOLDER / "normal_diff.png"
-clear_image = TEMPLATE_FOLDER / "clear.png"
-
-# 遊戲編號
-package_name = "com.linecorp.LGSNPTW"
-# 裝置編號
-device_serial = "R5CW915J6XV"
-
-# 1. 棋盤參數 (之前測過的)
-ESTIMATED_BOARD_WIDTH = 400     
-ESTIMATED_BOARD_HEIGHT = 400     
-OFFSET_X = 7                     
-OFFSET_Y = 36                     
-
-# 2. 識別參數
-CROP_RADIUS = 15                 
-CONFIDENCE_THRESHOLD = 0.60      
-ANCHOR_CONFIDENCE = 0.8          
-
-# 3. 🎛️ 按鈕參數 (請填入剛剛在 debug_buttons.py 測出的數值)
-BTN_OFFSET_X = 21    # 第一個按鈕的 X
-BTN_OFFSET_Y = 600   # 按鈕的 Y (垂直高度)
-BTN_GAP = 44         # 按鈕間距
-
-# 4. 截圖參數
-# --- 📐 定義要向外擴張多少像素 (你可以根據實際情況調整這裡) ---
-# 數獨棋盤通常在畫面中間偏下，所以上方要留多一點空間給標題欄
-MARGIN_TOP = 200    # 上方擴張像素 (例如：狀態列、App標題)
-MARGIN_BOTTOM = 250 # 下方擴張像素 (例如：按鈕區、廣告)
-MARGIN_SIDE = 10    # 左右兩側擴張像素
+# --- 自動執行載入 ---
+GameConfig.load_settings()

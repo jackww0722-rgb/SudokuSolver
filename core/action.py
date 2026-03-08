@@ -1,70 +1,122 @@
-# action.py
-import pyautogui
+# core/action.py
 import time
-from pathlib import Path
-from .config import CLICK_DELAY, ACTION_WAIT, BTN_OFFSET_X, BTN_OFFSET_Y, BTN_GAP, MOUSE_PAUSE_TIME, CONFIDENCE_THRESHOLD 
-pyautogui.PAUSE = MOUSE_PAUSE_TIME
-from . import vision
+from .config import GameConfig
+from .adb_controller import AdbController
+from .vision import SudokuVision
+import threading
 
 
-# 🖱️ 第三部分：自動操作 (相對座標版)
-# ==========================================
+class StopTaskException(Exception):
+    pass
 
-def click_position(image_path: Path, confidence=CONFIDENCE_THRESHOLD ):
-    """
-    通用的點擊函數
-    position: 可以是 pyautogui.Point 物件 或 tuple (x, y)
-    """
+class AdbActionBot:
+    def __init__(self, region_info : dict, btn_info : dict, adb : AdbController, vision : SudokuVision):
+        # 告訴 adbutils adb.exe 在哪
+        self.region_info = region_info
+        self.btn_info = btn_info
+        self.adb = adb
+        self.vision = vision
 
-    location = vision.find_image_center(image_path, confidence=confidence)
-    if location:
-        x, y = location
-        print(f"🖱️ 點擊座標: {x}, {y}")
-        pyautogui.moveTo(x, y, duration=0.2)
-        pyautogui.click()
-        time.sleep(0.5) # 點擊後的緩衝，避免操作過快
-        return True
-    else:
-        print("⚠️ 無法點擊：座標為 None")
-        return False
+        # ==========================================
+        # 🚦 新增暫停控制閥 (Event)
+        # ==========================================
+        self.pause_event = threading.Event()
+        self.pause_event.set() # 預設是 Green Light (Set = 通行, Clear = 暫停)
+        self.stop_event = threading.Event()
+        self.stop_event.clear()
+        
+    def wait_if_paused(self):
+        """ 
+        [核心煞車] 所有動作前都會檢查
+        不僅檢查暫停，也檢查是否被按下停止
+        """
+        # A. 如果還沒暫停就按了停止
+        if self.stop_event.is_set():
+            raise StopTaskException("手動停止任務")
 
+        # B. 處理暫停邏輯
+        if not self.pause_event.is_set():
+            print("⏸️ 動作已暫停")
+            
+            # 【關鍵修改】不要用死等的 wait()，改用帶有 timeout 的迴圈
+            # 這樣就算在暫停狀態下按「停止」，程式也能馬上反應並退出
+            while not self.pause_event.is_set():
+                if self.stop_event.is_set():
+                    raise StopTaskException("在暫停狀態下被強制停止")
+                self.pause_event.wait(0.5) # 每 0.5 秒醒來偷看一下有沒有被按停止
+            
+            print("▶️ 動作恢復！")
+    # =========================
+    # 填寫答案
+    # =========================
+    def fill_result_relative(self, original_board, solved_board):
+        print("✍️ [Action] 開始填入答案...")
 
-def fill_result_relative(original_board, solved_board, region_info):
-    print("✍️ 開始填入答案 (相對座標模式)...")
-    print("🛑 緊急停止：滑鼠甩至左上角")
-    
-    cell_w = region_info['cell_w']
-    cell_h = region_info['cell_h']
-    start_x = region_info['left']
-    start_y = region_info['top']
+        cell_w = self.region_info["cell_w"]
+        cell_h = self.region_info["cell_h"]
+        start_x = self.region_info["left"]
+        start_y = self.region_info["top"]
 
-    for row in range(9):
-        for col in range(9):
-            if original_board[row][col] == 0:
-                num_to_fill = solved_board[row][col]
+        for r in range(9):
+            for c in range(9):
+                self.wait_if_paused()
+                if original_board[r][c] != 0:
+                    continue
+
+                val = solved_board[r][c]
+
+                # A. 點格子
+                cx = start_x + c * cell_w + cell_w // 2
+                cy = start_y + r * cell_h + cell_h // 2
+                self.adb.tap(cx, cy)
+                time.sleep(0)
+
+                # B. 點數字
+                btn_idx = val - 1
+                bx = start_x + self.btn_info["BTN_OFFSET_X"] + btn_idx * self.btn_info["BTN_GAP"]
+                by = start_y + self.btn_info["BTN_OFFSET_Y"]
+                self.adb.tap(bx, by)
+
+                time.sleep(0)
+
+        print("🎉 填寫完成")
+
+    def click_target(self, img_name, timeout=30, threshold=0.8, wait_time = 0):  #等待並點擊
+        """
+        [升級版] 偵測圖片並點擊 (支援等待模式)
+        :param img_name: 圖片檔名
+        :param off_x, off_y: 偏移量
+        :param timeout: 等待超時時間 (秒)。
+        填 0 = 看一眼沒看到就走 (即時模式)。
+        填 10 = 最多等 10 秒，期間一出現就點 (等待模式)。
+        """
+        print(f"🔍 尋找目標 {img_name}...")
+        
+        start_time = time.time() # 紀錄開始時間
+
+        while True:
+            # 1. 截圖
+            screen = self.adb.get_screenshot()
+            
+            if screen is not None:
+                # 2. 找圖
+                pos = self.vision.find_and_get_pos(screen, img_name, threshold=threshold)
                 
-                # 1. 點擊「格子」
-                cell_center_x = start_x + (col * cell_w) + (cell_w // 2)
-                cell_center_y = start_y + (row * cell_h) + (cell_h // 2)
-                
-                pyautogui.moveTo(cell_center_x, cell_center_y, duration=0.1)
-                pyautogui.click()
-                time.sleep(CLICK_DELAY)
-                
-                # 2. 計算「按鈕」的相對位置 (數學公式)
-                # 邏輯：棋盤左邊 + 按鈕起始偏移 + (數字幾 * 間距)
-                # 注意：num_to_fill 是 1~9，所以要減 1 才能變成 0~8 的索引
-                btn_index = num_to_fill - 1
-                
-                btn_x = start_x + BTN_OFFSET_X + (btn_index * BTN_GAP)
-                btn_y = start_y + BTN_OFFSET_Y
-                
-                # 3. 點擊「按鈕」
-                pyautogui.moveTo(btn_x, btn_y, duration=0.1)
-                pyautogui.click()
-                time.sleep(CLICK_DELAY)
-                
-                # 休息一下
-                time.sleep(ACTION_WAIT)
-    
-    print("🎉 完成！")
+                if pos:
+                    time.sleep(wait_time)
+                    cx, cy = pos
+                    print(f"   ✅ 發現目標！")
+                    self.adb.tap(cx, cy)
+                    return True # 任務完成，跳出
+
+            # 3. 檢查是否超時
+            elapsed_time = time.time() - start_time
+            if elapsed_time > timeout:
+                # 時間到了還沒找到
+                if timeout > 0:
+                    print(f"   ⌛ 等待超時 ({timeout}s)，未發現 {img_name}")
+                return False
+
+            # 4. 還沒超時，休息一下再試 (避免 CPU 飆高)
+            time.sleep(1.0)
+
