@@ -10,10 +10,10 @@ root_path = str(Path(__file__).parent.parent)
 if root_path not in sys.path:
     sys.path.append(root_path)
 
-# 引入寫好的類別
+
 from core.config import GameConfig
 from core.vision import SudokuVision
-from core.action import AdbActionBot
+from core.action import AdbActionBot, StopTaskException
 from core.solver import SolverBot 
 from core.adb_controller import AdbController
 

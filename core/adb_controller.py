@@ -1,6 +1,5 @@
 import subprocess
 import numpy as np
-import random
 import cv2
 import time
 import re
@@ -11,54 +10,77 @@ from typing import Any
 
 
 class AdbController:
-    def __init__(self, adb_config : dict[str, Any]):
+    def __init__(self, adb_config: dict[str, Any]):
+        """
+        1. 初始化階段：只綁定設定檔，預設所有屬性。
+        絕對不碰網路連線，保證瞬間建立物件不報錯。
+        """
         self.adb_config = adb_config
+        self.device: Any = None
+        
+        # 預設解析度與縮放屬性
+        self.real_w = 0
+        self.real_h = 0
+        self.scale = 1.0
+        self.offset_x = 0.0
+        self.offset_y = 0.0
 
-        if self.adb_config["ADB_PATH"]:
+        # 設定 ADB 路徑可以放在這裡，因為這只是修改本地變數
+        if self.adb_config.get("ADB_PATH"):
             adb.adb_path = self.adb_config["ADB_PATH"]
 
-        print(f"🔗 正在連線至裝置: {self.adb_config["device_serial"]} ...")
+    def connect(self) -> bool:
+        """
+        2. 連線階段：由外部主動呼叫，負責連線並更新設備狀態。
+        """
+        target_serial = self.adb_config.get("device_serial", "").strip()
+        print(f"🔗 正在準備連線...")
 
-        if not self.adb_config["device_serial"]:
-            print("🔍 未指定序號，正在自動搜尋裝置...")
-            devices = adb.device_list() # 抓取目前所有連線的裝置 # type: ignore
+        try:
+            if not target_serial:
+                print("🔍 未指定序號，正在自動搜尋裝置...")
+                devices = adb.device_list() # type: ignore
+                if not devices:
+                    raise RuntimeError("未偵測到任何 ADB 裝置！請確認模擬器已開啟。")
+                self.device = devices[0]
+                self.device.shell("echo hello") # 測試連線
+                print(f"✅ 自動鎖定裝置: {self.device.serial}")
+            else:
+                self.device = adb.device(serial=target_serial)
+                self.device.shell("echo hello") # 測試連線
+                print(f"✅ 連線成功: {self.device.serial}")
             
-            if not devices:
-                raise RuntimeError("未偵測到任何 ADB 裝置！請確認模擬器已開啟。")
+            # 連線成功後，順便呼叫計算解析度的方法
+            self._update_resolution_and_scale()
+            return True
             
-            # 直接抓第一台
-            self.device = devices[0]
-            print(f"✅ 自動鎖定裝置: {self.device.serial}")
-        else:
-            try:
-                self.device = adb.device(serial=self.adb_config["device_serial"])
-                print(f"✅ 連線成功: {self.device.prop.name} (Serial: {self.device.serial})")
-            except Exception as e:
-                print(f"❌ 連線失敗，請檢查序號或 ADB 伺服器: {e}")
-                raise e
-            
-         # 1. 取得真實解析度
+        except Exception as e:
+            print(f"❌ 連線失敗: {e}")
+            return False
+
+    def _update_resolution_and_scale(self):
+        """
+        3. 計算階段：負責向設備要解析度，並計算縮放比例與偏移量。
+        設為私有方法 (前面加底線)，因為外部不需要直接呼叫它。
+        """
+        if not self.device:
+            return
+
         self.real_w, self.real_h = self._get_device_resolution()
         
-        # 2. 計算「等比」縮放比例
-        # 我們比較 寬度比 和 高度比，取「比較小」的那個，確保畫面塞得進去且不變形
         ratio_w = self.real_w / self.adb_config["design_width"]
         ratio_h = self.real_h / self.adb_config["design_height"]
         
-        self.scale = min(ratio_w, ratio_h) # ⭐️ 關鍵：只用一個比例
-        
-        # 3. 計算偏移量 (Offset) - 用來處理黑邊
-        # 算出縮放後，內容實際佔用的寬高
+        self.scale = min(ratio_w, ratio_h)
         actual_content_w = self.adb_config["design_width"] * self.scale
         actual_content_h = self.adb_config["design_height"] * self.scale
         
-        # 算出多出來的黑邊 (除以 2 是為了置中)
         self.offset_x = (self.real_w - actual_content_w) / 2
         self.offset_y = (self.real_h - actual_content_h) / 2
         
         print(f"📱 解析度: {self.real_w}x{self.real_h}")
-        print(f"⚖️  縮放比: {self.scale:.3f} | ↔ X偏移: {self.offset_x:.1f} | ↕ Y偏移: {self.offset_y:.1f}")
-        
+        print(f"⚖️ 縮放比: {self.scale:.3f} | ↔ X偏移: {self.offset_x:.1f} | ↕ Y偏移: {self.offset_y:.1f}")
+
     def _get_device_resolution(self) -> tuple[int, int]:
         """ 
         使用 ADB 獲取解析度

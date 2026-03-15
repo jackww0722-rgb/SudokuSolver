@@ -4,7 +4,6 @@ from tkinter import ttk
 import threading
 import time
 from ctypes import windll
-from core.action import StopTaskException
 
 # 引入核心
 from core import bot
@@ -12,7 +11,7 @@ from core import bot
 class SudokuBotGUI:
     def __init__(self, root):
         self.root = root
-        
+        self.bot = bot.SudokuBot()
         # 1. DPI 設定
         try:
             windll.shcore.SetProcessDpiAwareness(1)
@@ -30,7 +29,6 @@ class SudokuBotGUI:
         self.style.configure('Status.TLabel', font=("微軟正黑體", 11, "bold"))
 
         # --- 關鍵修改：一開始不要實例化 Bot ---
-        self.bot = None 
         self.is_running = False
 
         # --- 介面佈局 ---
@@ -108,17 +106,21 @@ class SudokuBotGUI:
 
     def _connect_task(self):
         """ 真正的連線動作 (在背景執行) """
+        if not self.bot:
+            print("⚠️ 機器人尚未初始化！")
+            return
         try:
-            # 嘗試建立 Bot (這會觸發 AdbController 的 init)
             # 如果沒抓到裝置，這裡應該要報錯
-            self.bot = bot.SudokuBot()
-            
-            # 連線成功 -> 更新 UI
-            self.root.after(0, self._on_connect_success)
+            is_connected = self.bot.adb.connect()
+            if is_connected:
+                # 連線成功 -> 更新 UI
+                self.root.after(0, self._on_connect_success)
+            else:
+                # 回傳 False -> 設備沒開或未授權 -> 擋下來，更新 UI
+                self.root.after(0, lambda: self._on_connect_fail("找不到可用的裝置"))
+
         except Exception as e:
-            print(f"連線失敗: {e}")
-            # 連線失敗 -> 更新 UI
-            self.root.after(0, lambda: self._on_connect_fail(str(e)))
+                    print(f"⚠️ 系統錯誤: {e}")
 
     def _on_connect_success(self):
         """ 連線成功後的 UI 更新 """
@@ -252,7 +254,7 @@ class SudokuBotGUI:
             final_msg = f"✅ 任務結束！成功: {success_count}, 失敗: {fail_count}"
             self.label_status.config(text=final_msg, foreground="green" if fail_count == 0 else "orange")
 
-        except StopTaskException as e:
+        except bot.StopTaskException as e:
             print(f"🛑 {e}")
             self.label_status.config(text=f"🛑 任務已手動中止 (已完成: {success_count})", foreground="red")
             
