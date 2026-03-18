@@ -1,6 +1,5 @@
 # core/action.py
 import time
-from .config import GameConfig
 from .adb_controller import AdbController
 from .vision import SudokuVision
 import threading
@@ -11,7 +10,6 @@ class StopTaskException(Exception):
 
 class AdbActionBot:
     def __init__(self, region_info : dict, btn_info : dict, adb : AdbController, vision : SudokuVision):
-        # 告訴 adbutils adb.exe 在哪
         self.region_info = region_info
         self.btn_info = btn_info
         self.adb = adb
@@ -45,12 +43,12 @@ class AdbActionBot:
                     raise StopTaskException("在暫停狀態下被強制停止")
                 self.pause_event.wait(0.5) # 每 0.5 秒醒來偷看一下有沒有被按停止
             
-            print("▶️ 動作恢復！")
+            print("動作恢復！")
     # =========================
     # 填寫答案
     # =========================
     def fill_result_relative(self, original_board, solved_board):
-        print("✍️ [Action] 開始填入答案...")
+        print("開始填入答案...")
 
         cell_w = self.region_info["cell_w"]
         cell_h = self.region_info["cell_h"]
@@ -79,7 +77,7 @@ class AdbActionBot:
 
                 time.sleep(0)
 
-        print("🎉 填寫完成")
+        print("填寫完成")
 
     def click_target(self, img_name, timeout=30, threshold=0.8, wait_time = 0):  #等待並點擊
         """
@@ -90,7 +88,7 @@ class AdbActionBot:
         填 0 = 看一眼沒看到就走 (即時模式)。
         填 10 = 最多等 10 秒，期間一出現就點 (等待模式)。
         """
-        print(f"🔍 尋找目標 {img_name}...")
+        print(f"尋找目標 {img_name}...")
         
         start_time = time.time() # 紀錄開始時間
 
@@ -105,7 +103,7 @@ class AdbActionBot:
                 if pos:
                     time.sleep(wait_time)
                     cx, cy = pos
-                    print(f"   ✅ 發現目標！")
+                    print(f"   發現目標！")
                     self.adb.tap(cx, cy)
                     return True # 任務完成，跳出
 
@@ -114,9 +112,9 @@ class AdbActionBot:
             if elapsed_time > timeout:
                 # 時間到了還沒找到
                 if timeout > 0:
-                    print(f"   ⌛ 等待超時 ({timeout}s)，未發現 {img_name}")
+                    print(f"   等待超時 ({timeout}s)，未發現 {img_name}")
                 return False
 
-            # 4. 還沒超時，休息一下再試 (避免 CPU 飆高)
+            # 4. 還沒超時，休息一下再試
             time.sleep(1.0)
 

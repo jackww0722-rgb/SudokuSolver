@@ -1,9 +1,8 @@
 import cv2
 import numpy as np
-import subprocess
 import shutil  # 用來清理舊的 debug 資料夾
 from pathlib import Path
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Any
 from .config import GameConfig
 from .adb_controller import AdbController
 
@@ -29,10 +28,10 @@ class SudokuVision:
         只要檔名是以數字開頭，都會被載入
         """
         if not template_dir.exists():
-            print(f"[Vision] ❌ 找不到模板資料夾: {template_dir}")
+            print(f"找不到模板資料夾: {template_dir}")
             return
 
-        print(f"[Vision] 📂 正在載入多重模板...")
+        print(f"正在載入模板...")
         total_count = 0
         
         for i in range(1, 10):
@@ -59,9 +58,8 @@ class SudokuVision:
                 if img is not None:
                     self.templates[i].append(img)
                     total_count += 1
-                    # print(f"  👉 載入: {t_path.name}")
 
-        print(f"[Vision] ✅ 共載入 {total_count} 張模板圖片 (涵蓋數字 1-9)")
+        print(f"共載入 {total_count} 張模板圖片 (涵蓋數字 1-9)")
 
     def _slice_board(self, full_img: np.ndarray) -> List[List[np.ndarray]]:
         """根據物理座標切割出 81 個格子"""
@@ -105,7 +103,7 @@ class SudokuVision:
         # 2. 切割
         cells = self._slice_board(img)
         
-        # --- 🛠️ 除錯存檔區塊 ---
+        # ---除錯存檔區塊 ---
         if save_debug:
             current_dir = Path(__file__).parent.parent
             debug_dir = current_dir / Path("debug_cells_check")
@@ -114,14 +112,14 @@ class SudokuVision:
                 shutil.rmtree(debug_dir)
             debug_dir.mkdir(parents=True, exist_ok=True)
             
-            print(f"\n[Debug] 📸 正在儲存 81 張格子圖至: {debug_dir.absolute()}")
+            print(f"\n正在儲存 81 張格子圖至: {debug_dir.absolute()}")
             
             for r in range(9):
                 for c in range(9):
                     fname = debug_dir / f"cell_{r}_{c}.png"
                     # 使用 imencode 支援中文路徑存檔
                     cv2.imencode(".png", cells[r][c])[1].tofile(str(fname))
-            print("[Debug] ✅ 儲存完畢！請打開資料夾檢查圖片是否偏移。\n")
+            print("儲存完畢！請打開資料夾檢查圖片是否偏移。\n")
         # -----------------------
 
         # 3. 比對
@@ -164,7 +162,7 @@ class SudokuVision:
             img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
             return img
         except Exception as e:
-            print(f"⚠️ 讀取圖片失敗: {file_path} | 錯誤: {e}")
+            print(f"讀取圖片失敗: {file_path} | 錯誤: {e}")
             return None
 
     def find_and_get_pos(self, screen, template_name, threshold : float | None = None):
@@ -181,20 +179,19 @@ class SudokuVision:
         
         # 3. 防呆檢查：圖片讀取失敗
         if template is None:
-            print(f"❌ [Error] 找不到或無法讀取圖片: {template_path}")
+            print(f"找不到或無法讀取圖片: {template_path}")
             return None
 
 
         # 4. 防呆檢查：螢幕截圖失敗
         if screen is None:
-             print("❌ [Error] 螢幕截圖失敗 (Screen is None)，請檢查 ADB 連線")
+             print("螢幕截圖失敗 (Screen is None)，請檢查 ADB 連線")
              return None
 
 
         # 5. 防呆檢查：尺寸不合
         # (一定要在確認 template 不是 None 之後才能做)
         if template.shape[0] > screen.shape[0] or template.shape[1] > screen.shape[1]:
-            # print(f"⚠️ [Warning] 圖片比螢幕大: {template_name}")
             return None
 
         # 6. 開始匹配

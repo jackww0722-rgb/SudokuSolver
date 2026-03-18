@@ -120,7 +120,7 @@ class SudokuBotGUI:
                 self.root.after(0, lambda: self._on_connect_fail("找不到可用的裝置"))
 
         except Exception as e:
-                    print(f"⚠️ 系統錯誤: {e}")
+                    print(f"系統錯誤: {e}")
 
     def _on_connect_success(self):
         """ 連線成功後的 UI 更新 """
@@ -224,7 +224,7 @@ class SudokuBotGUI:
                 # 2. 呼叫 Bot 並接收回傳值 (True/False)
                 # ==========================================
                 # 這裡不會再報錯了，而是回傳 True 或 False
-                is_success = self.bot.run_round_with_retry(
+                result = self.bot.run_round_with_retry(
                     current_round=current, 
                     total_rounds=total_rounds
                 )
@@ -232,18 +232,26 @@ class SudokuBotGUI:
                 # ==========================================
                 # 3. 根據結果處理 UI
                 # ==========================================
-                if is_success:
+                if result == bot.TaskStatus.SUCCESS:
                     success_count += 1
-                    print(f"✅ 第 {current} 局執行成功")
-                else:
+                    print(f"第 {current} 局執行成功")
+                elif result == bot.TaskStatus.FAIL:
                     fail_count += 1
                     # 因為 Bot 內部已經做過「異常恢復」了
                     # 所以這裡只要記錄失敗，然後讓迴圈「繼續」跑下一局即可
-                    print(f"⚠️ 第 {current} 局執行失敗 (已嘗試救援)")
+                    print(f"第 {current} 局執行失敗 (已嘗試救援)")
                     self.label_status.config(text=f"⚠️ 本局失敗，準備下一局...", foreground="orange")
                     
                     # 失敗後通常建議多休息一下，讓系統緩衝
                     time.sleep(2) 
+                elif result == bot.TaskStatus.STOPPED:
+                    print("已停止")
+                    self.label_status.config(text=f"🛑 任務已手動中止 (已完成: {success_count})", foreground="red")
+                    break
+                elif result == bot.TaskStatus.ERROR:
+                    print("系統錯誤")
+                    self.label_status.config(text=f"🛑 系統發生錯誤 (已完成: {success_count})", foreground="red")
+                    break
 
                 # 4. 回合間的休息
                 if i < total_rounds - 1:
@@ -253,14 +261,10 @@ class SudokuBotGUI:
             # 迴圈結束
             final_msg = f"✅ 任務結束！成功: {success_count}, 失敗: {fail_count}"
             self.label_status.config(text=final_msg, foreground="green" if fail_count == 0 else "orange")
-
-        except bot.StopTaskException as e:
-            print(f"🛑 {e}")
-            self.label_status.config(text=f"🛑 任務已手動中止 (已完成: {success_count})", foreground="red")
-            
+        
         except Exception as e:
             # 這裡只會捕捉「程式碼錯誤」或「連線中斷」等嚴重錯誤
-            print(f"❌ 系統發生嚴重錯誤: {e}")
+            print(f"系統發生嚴重錯誤: {e}")
             import traceback
             traceback.print_exc() # 印出詳細錯誤，方便您除錯
             self.label_status.config(text="❌ 系統錯誤 (請看終端機)", foreground="red")

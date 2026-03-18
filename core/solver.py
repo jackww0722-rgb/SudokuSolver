@@ -1,6 +1,4 @@
 # core/solver.py
-import copy
-
 class BitwiseSudokuSolver:
     """
     [內部引擎] 使用位元運算 (Bitwise Operation) 來加速數獨解題
@@ -110,7 +108,7 @@ class SolverBot:
         接收 9x9 的二維陣列 (包含 0)，回傳解答後的陣列。
         如果無解，回傳 None。
         """
-        print(f"🧮 SolverBot 開始計算 (位元加速版)...")
+        print(f"SolverBot 開始計算...")
         
         # 為了不影響原始輸入，建議複製一份 (雖然 bot.py 已經有備份，但在這裡做更保險)
         # 不過因為 BitwiseSudokuSolver 是直接修改傳入的物件，

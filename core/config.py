@@ -70,10 +70,10 @@ class GameConfig:
     def load_settings(cls):
         """ 嘗試讀取 settings.ini 並更新 adb_config """
         if not cls.INI_PATH.exists():
-            print(f"⚠️ 找不到設定檔 {cls.INI_PATH}，將使用程式碼內的預設值。")
+            print(f"找不到設定檔 {cls.INI_PATH}，將使用程式碼內的預設值。")
             return
 
-        print(f"📄 發現設定檔，正在載入: {cls.INI_PATH}")
+        print(f"發現設定檔，正在載入: {cls.INI_PATH}")
         config = configparser.ConfigParser()
         # 設定讀取編碼，避免中文路徑亂碼
         config.read(cls.INI_PATH, encoding='utf-8')
@@ -93,11 +93,11 @@ class GameConfig:
         if 'GAME' in config:
             cls.DEBUG_MODE = config.getboolean('Game', 'debug_mode', fallback=False)
             if cls.DEBUG_MODE:
-                print(f"🔧 除錯模式開啟")
+                print(f"除錯模式開啟")
 
 
 
-        print(f"✅ 設定載入完成 (裝置: {cls.adb_config['device_serial']})")
+        print(f"設定載入完成 (裝置: {cls.adb_config['device_serial']})")
 
 # --- 自動執行載入 ---
 GameConfig.load_settings()

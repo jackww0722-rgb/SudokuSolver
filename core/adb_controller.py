@@ -1,4 +1,3 @@
-import subprocess
 import numpy as np
 import cv2
 import time
@@ -34,28 +33,28 @@ class AdbController:
         2. 連線階段：由外部主動呼叫，負責連線並更新設備狀態。
         """
         target_serial = self.adb_config.get("device_serial", "").strip()
-        print(f"🔗 正在準備連線...")
+        print(f"正在準備連線...")
 
         try:
             if not target_serial:
-                print("🔍 未指定序號，正在自動搜尋裝置...")
+                print("未指定序號，正在自動搜尋裝置...")
                 devices = adb.device_list() # type: ignore
                 if not devices:
                     raise RuntimeError("未偵測到任何 ADB 裝置！請確認模擬器已開啟。")
                 self.device = devices[0]
                 self.device.shell("echo hello") # 測試連線
-                print(f"✅ 自動鎖定裝置: {self.device.serial}")
+                print(f"自動鎖定裝置: {self.device.serial}")
             else:
                 self.device = adb.device(serial=target_serial)
                 self.device.shell("echo hello") # 測試連線
-                print(f"✅ 連線成功: {self.device.serial}")
+                print(f"連線成功: {self.device.serial}")
             
             # 連線成功後，順便呼叫計算解析度的方法
             self._update_resolution_and_scale()
             return True
             
         except Exception as e:
-            print(f"❌ 連線失敗: {e}")
+            print(f"連線失敗: {e}")
             return False
 
     def _update_resolution_and_scale(self):
@@ -78,8 +77,8 @@ class AdbController:
         self.offset_x = (self.real_w - actual_content_w) / 2
         self.offset_y = (self.real_h - actual_content_h) / 2
         
-        print(f"📱 解析度: {self.real_w}x{self.real_h}")
-        print(f"⚖️ 縮放比: {self.scale:.3f} | ↔ X偏移: {self.offset_x:.1f} | ↕ Y偏移: {self.offset_y:.1f}")
+        print(f"解析度: {self.real_w}x{self.real_h}")
+        print(f"縮放比: {self.scale:.3f} | ↔ X偏移: {self.offset_x:.1f} | ↕ Y偏移: {self.offset_y:.1f}")
 
     def _get_device_resolution(self) -> tuple[int, int]:
         """ 
@@ -98,14 +97,14 @@ class AdbController:
                     return int(match.group(1)), int(match.group(2))
             
         except Exception as e:
-            print(f"⚠️ 解析度偵測失敗: {e}")
+            print(f"解析度偵測失敗: {e}")
         
         # ==========================================
         # 🛡️ 安全網 (Safety Net)
         # 只要上面發生錯誤 (Exception) 或 沒抓到 (match is None)
         # 程式都會跑到這裡
         # ==========================================
-        print(f"⚠️ 無法取得真實解析度，使用預設值: {self.adb_config["design_width"]}x{self.adb_config["design_height"]}")
+        print(f"無法取得真實解析度，使用預設值: {self.adb_config["design_width"]}x{self.adb_config["design_height"]}")
         return self.adb_config["design_width"], self.adb_config["design_height"]
 
 
@@ -134,7 +133,7 @@ class AdbController:
             raw_img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
 
             if raw_img is None:
-                print("❌ 截圖解碼失敗 (回傳 None)")
+                print("截圖解碼失敗 (回傳 None)")
                 return None
 
             # 3. 判斷是否需要縮放與裁切
@@ -153,7 +152,7 @@ class AdbController:
             
             # 防呆：確保裁切範圍合理 (避免負數導致報錯)
             if y_start >= y_end or x_start >= x_end:
-                 print(f"⚠️ 裁切參數異常，回傳原始圖片 (Offset: {self.offset_x}, {self.offset_y})")
+                 print(f"裁切參數異常，回傳原始圖片 (Offset: {self.offset_x}, {self.offset_y})")
                  return raw_img
 
             cropped_img = raw_img[y_start:y_end, x_start:x_end]
@@ -165,7 +164,7 @@ class AdbController:
             return final_img
 
         except Exception as e:
-            print(f"❌ 截圖流程發生錯誤: {e}")
+            print(f"截圖流程發生錯誤: {e}")
             import traceback
             traceback.print_exc() # 印出詳細錯誤位置，方便除錯
             return None
@@ -178,7 +177,6 @@ class AdbController:
         real_x = int(x * self.scale + self.offset_x)
         real_y = int(y * self.scale + self.offset_y)
         
-        # print(f"👆 映射: ({x},{y}) -> ({real_x},{real_y})")
         self.device.click(real_x, real_y)
 
     def stop_app(self, package_name:str | None = None):
@@ -192,7 +190,6 @@ class AdbController:
         self.device.app_start(target)
 
     def restart_app(self, package_name:str | None = None):
-        """ [系統] 快速重啟 (殺掉 -> 打開) """
         self.stop_app(package_name)
         time.sleep(3.0) # 系統反應時間
         self.start_app(package_name)
