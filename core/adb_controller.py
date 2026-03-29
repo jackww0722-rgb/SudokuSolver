@@ -2,9 +2,10 @@ import numpy as np
 import cv2
 import time
 import re
-import adbutils as adb
 from typing import Any
-
+from adbutils import adb
+import os
+from pathlib import Path
 
 
 
@@ -25,8 +26,31 @@ class AdbController:
         self.offset_y = 0.0
 
         # 設定 ADB 路徑可以放在這裡，因為這只是修改本地變數
-        if self.adb_config.get("ADB_PATH"):
-            adb.adb_path = self.adb_config["ADB_PATH"]
+        self._setup_custom_adb_env()
+
+    def _setup_custom_adb_env(self):
+        """ 
+        [內部工具] 動態注入 ADB 路徑，徹底消滅 Pylance 紅線與依賴問題 
+        """
+        # 假設你的 adb.exe 放在專案根目錄的 "tools" 資料夾下
+        # 利用 pathlib 精準定位絕對路徑
+        adb_path_str = self.adb_config.get("ADB_PATH")
+
+        # 確認資料夾真的存在
+        if adb_path_str:
+            # 轉換為 pathlib 物件以方便操作
+            custom_adb_file = Path(adb_path_str)
+            
+            if custom_adb_file.exists():
+                # .parent 可以精準抓出資料夾位置 (例如: C:\tools)
+                adb_folder = custom_adb_file.parent
+                
+                # 將該資料夾強制插隊到 Windows 系統變數 PATH 的最前面
+                # 這樣底層的 adbutils 在呼叫 "adb" 指令時，一定會優先用到你指定的這支！
+                os.environ["PATH"] = f"{adb_folder};{os.environ.get('PATH', '')}"
+                print(f"🔧 已動態掛載自訂 ADB 引擎目錄: {adb_folder}")
+            else:
+                print(f"⚠️ 設定檔中的 ADB 路徑不存在: {custom_adb_file}")
 
     def connect(self) -> bool:
         """

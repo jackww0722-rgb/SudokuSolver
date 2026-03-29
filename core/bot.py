@@ -74,7 +74,9 @@ class SudokuBot(AdbActionBot):
 
         # 點擊開始遊戲按鈕
         self.wait_if_paused()
-        self.click_target("start_btn.png", wait_time=3)
+        if not self.click_target("start_btn.png", wait_time=3):
+            self.click_target("87cheak.png")
+            time.sleep(5)
         time.sleep(1)
         self.wait_if_paused()
         if is_recovery:
