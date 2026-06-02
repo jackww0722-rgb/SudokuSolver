@@ -7,6 +7,7 @@ from ctypes import windll
 
 # 引入核心
 from core import bot
+from core.logger import logger
 
 class SudokuBotGUI:
     def __init__(self, root):
@@ -107,7 +108,7 @@ class SudokuBotGUI:
     def _connect_task(self):
         """ 真正的連線動作 (在背景執行) """
         if not self.bot:
-            print("⚠️ 機器人尚未初始化！")
+            logger.error("⚠️ 機器人尚未初始化！")
             return
         try:
             # 如果沒抓到裝置，這裡應該要報錯
@@ -120,7 +121,7 @@ class SudokuBotGUI:
                 self.root.after(0, lambda: self._on_connect_fail("找不到可用的裝置"))
 
         except Exception as e:
-                    print(f"系統錯誤: {e}")
+                    logger.error(f"系統錯誤: {e}")
 
     def _on_connect_success(self):
         """ 連線成功後的 UI 更新 """
@@ -128,7 +129,6 @@ class SudokuBotGUI:
             self.label_status.config(text="✅ 裝置已連線 (準備就緒)", foreground="green")
             self.btn_run_10.state(["!disabled"])
             self.btn_run_custom.state(["!disabled"])
-            self.lbl_info.config(text=f"解析度: {self.bot.adb.real_w}x{self.bot.adb.real_h}")
 
     def _on_connect_fail(self, error_msg):
         """ 連線失敗後的 UI 更新 """
@@ -141,14 +141,14 @@ class SudokuBotGUI:
         """ 切換 暫停/繼續 狀態 """
         if not self.bot: return
 
-        if self.bot.pause_event.is_set():
+        is_paused = self.bot.toggle_pause()
+
+        if is_paused:
             # 🟢 綠燈 -> 🔴 紅燈 (執行 -> 暫停)
-            self.bot.pause_event.clear()
             self.btn_pause.config(text="繼續執行")
             self.label_status.config(text="已暫停 (等待指令)", foreground="orange")
         else:
             # 🔴 紅燈 -> 🟢 綠燈 (暫停 -> 執行)
-            self.bot.pause_event.set()
             self.btn_pause.config(text="暫停")
             self.label_status.config(text="恢復執行中...", foreground="blue")
 
@@ -162,7 +162,7 @@ class SudokuBotGUI:
         self.label_status.config(text="🛑 正在停止中，請稍候...", foreground="red")
         
         # 2. 觸發停止訊號
-        self.bot.stop_event.set()
+        self.bot.stop_task()
 
     # ==========================================
     # 🎮 任務執行邏輯 (原本的部分)
@@ -198,14 +198,14 @@ class SudokuBotGUI:
         
         # 停止按鈕：解鎖
         self.btn_stop.state(["!disabled"])
-        
+        self.bot.connect_and_calibrate()
         threading.Thread(target=self.run_logic, args=(count,), daemon=True).start()
 
     def run_logic(self, total_rounds):
         # 建議加個統計變數，更有成就感
         success_count = 0
         fail_count = 0
-
+        
         try:
             for i in range(total_rounds):
                 # 1. 安全檢查
@@ -234,22 +234,22 @@ class SudokuBotGUI:
                 # ==========================================
                 if result == bot.TaskStatus.SUCCESS:
                     success_count += 1
-                    print(f"第 {current} 局執行成功")
+                    logger.info(f"第 {current} 局執行成功")
                 elif result == bot.TaskStatus.FAIL:
                     fail_count += 1
                     # 因為 Bot 內部已經做過「異常恢復」了
                     # 所以這裡只要記錄失敗，然後讓迴圈「繼續」跑下一局即可
-                    print(f"第 {current} 局執行失敗 (已嘗試救援)")
+                    logger.warning(f"第 {current} 局執行失敗 (已嘗試救援)")
                     self.label_status.config(text=f"⚠️ 本局失敗，準備下一局...", foreground="orange")
                     
                     # 失敗後通常建議多休息一下，讓系統緩衝
                     time.sleep(2) 
                 elif result == bot.TaskStatus.STOPPED:
-                    print("已停止")
+                    logger.info("已停止")
                     self.label_status.config(text=f"🛑 任務已手動中止 (已完成: {success_count})", foreground="red")
                     break
                 elif result == bot.TaskStatus.ERROR:
-                    print("系統錯誤")
+                    logger.error("系統錯誤")
                     self.label_status.config(text=f"🛑 系統發生錯誤 (已完成: {success_count})", foreground="red")
                     break
 
@@ -264,9 +264,7 @@ class SudokuBotGUI:
         
         except Exception as e:
             # 這裡只會捕捉「程式碼錯誤」或「連線中斷」等嚴重錯誤
-            print(f"系統發生嚴重錯誤: {e}")
-            import traceback
-            traceback.print_exc() # 印出詳細錯誤，方便您除錯
+            logger.error(f"系統發生嚴重錯誤: {e}")
             self.label_status.config(text="❌ 系統錯誤 (請看終端機)", foreground="red")
         
         finally:
